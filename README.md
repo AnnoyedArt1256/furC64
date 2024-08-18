@@ -36,7 +36,7 @@ when you've finished / want to test out this driver:
 * in the `furC64/asm` directory you'll hopefully see a file called **`furC64-test.prg`**
   * that's your .prg file that you can run on hardware or on an emulator like VICE!
 
-Hopefully you'll have fun with this driver alongside [Python](https://github.com/AnnoyedArt1256/furNES) :D
+Hopefully you'll have fun with this driver alongside [furNES](https://github.com/AnnoyedArt1256/furNES) :D
 
 Libraries used: chipchune
 
