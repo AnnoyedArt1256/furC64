@@ -471,8 +471,9 @@ for i in range(len(module.instruments)):
             if hasRel == 0:
                 relA.append(len(arp))
             hasRelTotal[1] = 1
+            len_temp = len(arp)
             arp.append(0xFF)
-            arp.append(loop)
+            arp.append(loop if loop!=len_temp else 0xff)
         if kind == MacroCode.DUTY and j.type == MacroType.LFO:
             while type(j.data[0]) is not int:
                 j.data = j.data[1:]
@@ -528,8 +529,9 @@ for i in range(len(module.instruments)):
             if hasRel == 0:
                 relD.append(len(duty))
             hasRelTotal[2] = 1
+            len_temp = len(duty)
             duty.append(0xFF)
-            duty.append(loop)
+            duty.append(loop if loop!=len_temp else 0xff)
         if kind == MacroCode.ALG and j.type == MacroType.LFO:
             while type(j.data[0]) is not int:
                 j.data = j.data[1:]
@@ -584,8 +586,9 @@ for i in range(len(module.instruments)):
             if hasRel == 0:
                 relC.append(len(cutoff))
             hasRelTotal[3] = 1
+            len_temp = len(cutoff)
             cutoff.append(0xFF)
-            cutoff.append(loop)
+            cutoff.append(loop if loop!=len_temp else 0xff)
         if kind == MacroCode.WAVE:
             s = j.speed
             wave = []
@@ -605,8 +608,9 @@ for i in range(len(module.instruments)):
             if hasRel == 0:
                 relW.append(len(wave))
             hasRelTotal[0] = 1
+            len_temp = len(wave)
             wave.append(0xFF)
-            wave.append(loop)
+            wave.append(loop if loop!=len_temp else 0xff)
     if hasRelTotal[0] == 0:
         relW.append(0)
     if hasRelTotal[1] == 0:
