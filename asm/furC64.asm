@@ -124,6 +124,7 @@ fil_lo_n: .res CHIP_AMT
 fil_hi_n: .res CHIP_AMT
 base: .res 1
 chipnum: .res 1
+has_played: .res chnum
 vars_len = *-start_vars
 
 .endmacro
@@ -361,6 +362,7 @@ table_fil:
   sta fil_hi_n2, x
   sta fil_st2, x
   sta mframeC, x
+  sta has_played, x
   dex
   bpl :-
 
@@ -903,6 +905,7 @@ cont_advance:
   sta env_reset2, x
   lda #1
   sta dur, x
+  sta has_played, x
   ldy #0
   jmp end_advance
 
@@ -1172,25 +1175,32 @@ end:
 add_inscut
 
 .macro cmp16 val1, val2
-    lda val1
-    sec
-    sbc val2
-    php
-    lda val1+1
-    sbc val2+1
-    php
-    pla
-    sta macroIns
-    pla
-    and #%00000010
-    ora #%11111101
-    and macroIns
-    pha
-    plp
+    .if 0
+        lda val1
+        sec
+        sbc val2
+        php
+        lda val1+1
+        sbc val2+1
+        php
+        pla
+        sta macroIns
+        pla
+        and #%00000010
+        ora #%11111101
+        and macroIns
+        pha
+        plp
+    .else
+        lda val1
+        sec
+        sbc val2
+        lda val1+1
+        sbc val2+1
+    .endif
 .endmacro
 
 doFinepitch:
-
   lda vibrato_param, x
   lsr
   lsr
@@ -1245,7 +1255,6 @@ doFinepitch:
   lda temp+1
   sbc temp+3
   sta temp+1
-
   rts
 
 .macro add_do_ch
@@ -1806,7 +1815,7 @@ nrel:
   clc
   ;adc arp, x
 nout:
-  clc
+  ;clc
   jsr add_arpeff
   jsr clamp_note
   tay
@@ -1834,6 +1843,7 @@ slide_loop:
   bne :+
   jmp slide_loop2
 :
+
   lda slide_amt_sign, x
   bne positive_slide
   sec
@@ -1843,9 +1853,7 @@ slide_loop:
   lda slide_buffer_hi, x
   sbc #0
   sta slide_buffer_hi, x
-;  bvc :+ ; i've never used this instruction before lmao
-;  jmp finish_slide
-;:
+
   ldy note_dest, x
   lda note_table_lo, y
   sta patzp
@@ -1857,7 +1865,7 @@ slide_loop:
   sta temp+1
   cmp16 patzp, temp
   bcc slide_loop2
-  jmp finish_slide
+  bcs finish_slide
 positive_slide:
   clc
   lda slide_buffer_lo, x
@@ -1866,7 +1874,6 @@ positive_slide:
   lda slide_buffer_hi, x
   adc #0
   sta slide_buffer_hi, x
-  ;bcc :+
   jmp :+
 finish_slide:
   lda note_dest, x
@@ -1889,7 +1896,7 @@ finish_slide:
   sta temp+1
   cmp16 temp, patzp
   bcc slide_loop2
-  jmp finish_slide
+  bcs finish_slide
 slide_loop2:
   dex
   bmi slide_loopt
@@ -1903,6 +1910,12 @@ slide_loopt:
   beq note_tick_loop
   inc note_tick, x
 note_tick_loop:
+
+  lda has_played, x
+  bne note_tick_loop2
+  lda #3
+  sta note_tick, x
+note_tick_loop2:
   dex
   bpl :-
 
@@ -2050,8 +2063,13 @@ nout3:
   ldx #2
 :
   txa
+
+  pha
+
   clc
   adc #J*3
+
+  pha
   tax
   jsr doFinepitch
   txa
@@ -2065,10 +2083,12 @@ nout3:
   lda temp+1
   sta $d401+J*$20, y
 
-  txa
-  clc
-  adc #J*3
-  tax
+  ;txa
+  ;clc
+  ;adc #J*3
+  ;tax
+  pla
+
   lda freq_lo1, x
   sta freq_lo2, x
   lda temp
@@ -2078,10 +2098,12 @@ nout3:
   sta freq_hi2, x
   lda temp+1
   sta freq_hi1, x
-  txa
-  sec
-  sbc #J*3
-  tax
+
+  ;txa
+  ;sec
+  ;sbc #J*3
+  ;tax
+  pla
 
   lda ad+J*3, x
   sta $d405+J*$20, y
