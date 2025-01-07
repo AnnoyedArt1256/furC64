@@ -54,7 +54,6 @@ inst2: .res chnum
 mframeC: .res CHIP_AMT
 
 instF: .res CHIP_AMT
-inst_prev_note: .res chnum
 
 wav: .res chnum
 
@@ -1010,7 +1009,9 @@ beg:
   sta macroIns
   lda insDH, y
   sta macroIns+1
-  ldx ch
+
+  ;ldx ch
+
   ldy mframeD, x
   lda (macroIns), y
   sta temp
@@ -1367,8 +1368,8 @@ skipHR1:
   lda (patzp), y
   sta flags_temp
   and #1
-  tay
-  lda table_1_to_ff, y
+  ;tay
+  ;lda table_1_to_ff, y
   sta abspw, x
 
   lda flags_temp
@@ -1741,6 +1742,7 @@ skipseq:
   jsr inswave
   jsr insduty
 .endrepeat
+
 
 .repeat CHIP_AMT, I
   lda #I
