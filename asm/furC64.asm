@@ -2114,11 +2114,11 @@ nout3:
 
   lda wav+J*3, x
   sta $d404+J*$20, y
-  lda duty_lo, x
+  lda duty_lo+J*3, x
   clc
   adc pw_mod_lo+J*3, x
   sta $d402+J*$20, y
-  lda duty_hi, x
+  lda duty_hi+J*3, x
   adc pw_mod_hi+J*3, x
   and #$0f
   sta $d403+J*$20, y
