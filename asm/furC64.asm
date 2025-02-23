@@ -8,7 +8,6 @@
 TEST_AD := $00
 TEST_SR := $00
 
-
 ;.define compat_hr 1
 ;TEST_AD := $0f
 ;TEST_SR := $0f
@@ -27,10 +26,8 @@ mframeW: .res chnum
 doMacroW: .res chnum
 
 ; why
+env_reset_buf: .res chnum
 env_reset: .res chnum
-env_reset2: .res chnum
-env_reset3: .res chnum
-env_reset4: .res chnum
 
 fil_lo_n2: .res CHIP_AMT
 fil_hi_n2: .res CHIP_AMT
@@ -50,7 +47,6 @@ vibrato_phase: .res chnum
 absfil: .res CHIP_AMT
 
 doMacroC: .res CHIP_AMT
-inst2: .res chnum
 mframeC: .res CHIP_AMT
 
 instF: .res CHIP_AMT
@@ -60,12 +56,6 @@ wav: .res chnum
 hrframe: .res chnum
 
 hrc: .res chnum
-
-freq_lo1: .res chnum
-freq_lo2: .res chnum
-
-freq_hi1: .res chnum
-freq_hi2: .res chnum
 
 ad: .res chnum
 sr: .res chnum
@@ -82,7 +72,6 @@ ch: .res 1
 chm: .res 1
 tick: .res 1
 ins: .res chnum
-inst1: .res chnum
 inst_prev: .res chnum
 mframeA: .res chnum
 mframeD: .res chnum
@@ -100,6 +89,7 @@ slide_buffer_hi: .res chnum
 note_pitch_lo: .res chnum
 note_pitch_hi: .res chnum
 note_n: .res chnum
+note_temp: .res chnum
 note_dest: .res chnum
 finepitch: .res chnum
 cut_dur: .res chnum
@@ -128,11 +118,7 @@ vars_len = *-start_vars
 
 .endmacro
 
-.if compat_hr = 0
-inst_buffer = inst2
-.else
-inst_buffer = inst1
-.endif
+inst_buffer = ins
 
 .if chnum > 4
 .define actual_use_zp 0
@@ -395,7 +381,6 @@ table_fil:
   sta retrigger_pw, x
   sta abspw, x
   sta ins, x
-  sta inst1, x
   sta inst_prev, x
   sta arp, x
   sta slide_amt, x
@@ -411,10 +396,8 @@ table_fil:
   sta doMacroA, x
   sta doMacroW, x
   sta doMacroD, x
-  sta env_reset, x
   lda #$ff
-  sta env_reset2, x
-  sta env_reset3, x
+  sta env_reset_buf, x
   lda #8
   sta test_reset, x
   lda #4
@@ -580,7 +563,8 @@ retskip:
 effectF1:
   get_patzp
   ldx ch
-  sta env_reset3, x
+  eor #$ff
+  sta env_reset_buf, x
   jmp begnote
 .endmacro
 
@@ -696,11 +680,11 @@ effectEC:
   get_patzp
   ldx ch
   clc
-.if compat_hr = 0
+  .if compat_hr = 0
   adc #3
-.else
+  .else
   adc #2
-.endif
+  .endif
   sta cut_dur, x
   jmp begnote
 .endmacro
@@ -787,11 +771,13 @@ other_effects:
   lda insDrel, y
   sta mframeD, x
   ldx ch
-  lda wav, x
-  and #%11111110
-  sta wav, x
+  .if compat_hr = 0
+    lda #3
+  .else
+    lda #2
+  .endif
+  sta cut_dur, x
   lda #1
-  ldx ch
   sta dur, x
   ldy #0
   jmp end_advance
@@ -800,11 +786,13 @@ other_effects:
   cmp #$FE
   bne :+
   ldx ch
-  lda wav, x
-  and #%11111110
-  sta wav, x
+  .if compat_hr = 0
+    lda #3
+  .else
+    lda #2
+  .endif
+  sta cut_dur, x
   lda #1
-  ldx ch
   sta dur, x
   ldy #0
   jmp end_advance
@@ -867,7 +855,13 @@ cont_advance:
   lda temp
   and #$7f
   ldx ch
+
+  ldy env_reset_buf, x
+  beq :+
   sta note_n, x
+:
+  sta note_temp, x
+
   lda note_tick, x
   cmp #96
   bne :+
@@ -898,10 +892,8 @@ cont_advance:
 :
 .endif
   ldx ch
-  lda env_reset2, x
+  lda env_reset_buf, x
   sta env_reset, x
-  lda env_reset3, x
-  sta env_reset2, x
   lda #1
   sta dur, x
   sta has_played, x
@@ -1262,11 +1254,6 @@ doFinepitch:
 do_ch_jsr:
   .local skipHR1, skipHR2, end
   ldx ch
-  lda env_reset4, x
-  cmp #$ff
-  beq :+
-  dec env_reset4, x
-:
   lda hrc, x
   beq skipHR1
 
@@ -1275,6 +1262,9 @@ do_ch_jsr:
 .if HR_ADSR <> 0
   lda env_reset, x
   beq :+
+  lda #0
+  sta env_reset, x
+
   lda #TEST_AD
   sta ad, x
   lda #TEST_SR
@@ -1283,10 +1273,6 @@ do_ch_jsr:
   and #255^1
   ora test_reset, x
   sta wav, x
-  jmp :++
-: 
-  lda #1
-  sta env_reset4, x
 :
 .else
   lda inst_buffer, x
@@ -1333,6 +1319,11 @@ skipHR1:
 :
 
   ldx ch
+
+  ; for 1Axx
+  lda note_temp, x
+  sta note_n, x
+
   lda #0
   sta mframeA, x
   sta mframeD, x
@@ -1516,23 +1507,6 @@ do_ch_DIGI:
   ldx #3
   jsr doFinepitch
 
-  ldx #3
-  lda freq_lo1, x
-  sta freq_lo2, x
-  pha
-  lda temp
-  sta freq_lo1, x
-  pla
-  sta temp
-
-  lda freq_hi1, x
-  sta freq_hi2, x
-  pha
-  lda temp+1
-  sta freq_hi1, x
-  pla
-  sta temp+1
-
 .repeat 4
   clc
   lsr temp+1
@@ -1545,26 +1519,11 @@ do_ch_DIGI:
   sta nmi_freq_hi+1
 
   ldx ch
-  lda env_reset4, x
-  cmp #$ff
-  beq :+
-  dec env_reset4, x
-:
-
-  ldx ch
   lda hrc, x
   beq skipHR1
 
   lda #0
   sta hrc, x
-.if HR_ADSR <> 0
-  lda env_reset, x
-  bne :+
-  lda #1
-  sta env_reset4, x
-:
-.endif
-  lda #0
   sta doMacroA, x
   sta doMacroD, x
   sta doMacroW, x
@@ -1695,13 +1654,7 @@ skipseq:
 .if DIGI = 0
 .repeat chnum, I
   ldx #I
-  lda inst1, x
-  sta inst2, x
-  lda ins, x
-  sta inst1, x
-
-  lda #I
-  sta ch
+  stx ch
   lda #I .mod 3
   sta chm
   lda #(I .mod 3)*7+(I/3)*$20
@@ -1709,17 +1662,14 @@ skipseq:
   lda #I/3
   sta chipnum
   jsr do_ch_jsr
+  ldx ch
+  lda #$ff
+  sta env_reset_buf, x
 .endrepeat
 .else
 .repeat 4, I
   ldx #I
-  lda inst1, x
-  sta inst2, x
-  lda ins, x
-  sta inst1, x
-
-  lda #I
-  sta ch
+  stx ch
   lda #I .mod 3
   sta chm
   lda #(I .mod 3)*7+(I/3)*$20
@@ -1731,6 +1681,9 @@ skipseq:
   .else
     jsr do_ch_jsr
   .endif
+  ldx ch
+  lda #$ff
+  sta env_reset_buf, x
 .endrepeat
 .endif
 
@@ -1821,13 +1774,6 @@ nout:
   jsr add_arpeff
   jsr clamp_note
   tay
-  lda env_reset4, x
-  .if compat_hr = 0
-    cmp #$ff
-  .else
-    cmp #$00
-  .endif
-  bne :+
   clc
   lda note_table_lo, y
   adc slide_buffer_lo, x
@@ -1835,7 +1781,6 @@ nout:
   lda note_table_hi, y
   adc slide_buffer_hi, x
   sta note_pitch_hi, x
-:
   dex
   bpl note_loop
 
@@ -2047,9 +1992,6 @@ nout3:
   jsr add_arpeff
   jsr clamp_note
   tay
-  lda env_reset4, x
-  cmp #$ff
-  bne :+
   clc
   lda note_table_lo, y
   adc slide_buffer_lo, x
@@ -2057,7 +1999,6 @@ nout3:
   lda note_table_hi, y
   adc slide_buffer_hi, x
   sta note_pitch_hi, x
-:
   dex
   bpl note_loop3
 
@@ -2065,13 +2006,8 @@ nout3:
   ldx #2
 :
   txa
-
-  pha
-
   clc
   adc #J*3
-
-  pha
   tax
   jsr doFinepitch
   txa
@@ -2084,28 +2020,6 @@ nout3:
   sta $d400+J*$20,y 
   lda temp+1
   sta $d401+J*$20, y
-
-  ;txa
-  ;clc
-  ;adc #J*3
-  ;tax
-  pla
-
-  lda freq_lo1, x
-  sta freq_lo2, x
-  lda temp
-  sta freq_lo1, x
-
-  lda freq_hi1, x
-  sta freq_hi2, x
-  lda temp+1
-  sta freq_hi1, x
-
-  ;txa
-  ;sec
-  ;sbc #J*3
-  ;tax
-  pla
 
   lda ad+J*3, x
   sta $d405+J*$20, y
@@ -2220,4 +2134,3 @@ tri_vibrato_lookup:
   .endrepeat
 
 .include "song.asm"
-
